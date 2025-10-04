@@ -173,24 +173,37 @@ async function loadChapter({ family, version, book, chapter }) {
   }
 }
 
-// Ensure state consistency with DEMO dataset and family rules
-function sanitizeState() {
-  // Drop unknown versions and enforce family constraint
-  const filtered = (state.versions || []).filter((name) => {
-    const meta = DEMO.versions[name];
-    return !!meta && meta.family === state.family;
-  });
-  state.versions = filtered.length ? filtered : [...DEFAULT_STATE.versions];
+// Ensure state consistency. Accepts an optional catalog to avoid referencing
+// functions that depend on currentCatalog before it is set.
+function sanitizeState(catalog) {
+  const fam = state.family;
+  const allowedVersions = catalog?.versions
+    ? Object.keys(catalog.versions)
+    : Object.keys(Object.fromEntries(Object.entries(DEMO.versions).filter(([k, v]) => v.family === fam)));
 
-  // Ensure book exists for this family; if not, pick first available
-  const books = getBooks(state.family);
-  if (!books.includes(state.book)) state.book = books[0] || 'Genesis';
+  // Versions within family only
+  state.versions = (state.versions || []).filter((v) => allowedVersions.includes(v));
+  if (!state.versions.length) state.versions = [...DEFAULT_STATE.versions];
 
-  // Ensure chapter exists; if not, first available
-  const chapters = getChapters(state.book, state.family);
-  if (!chapters.includes(state.chapter)) state.chapter = chapters[0] || 1;
+  // Books from catalog, or DEMO fallback
+  const bookList = catalog?.books ? Object.keys(catalog.books) : (() => {
+    const s = new Set();
+    for (const v of Object.values(DEMO.versions)) if (v.family === fam) Object.keys(v.data).forEach((b) => s.add(b));
+    return Array.from(s);
+  })();
+  if (!bookList.includes(state.book)) state.book = bookList[0] || state.book || 'Genesis';
+
+  // Chapters for current book
+  const chapList = catalog?.books?.[state.book] || (() => {
+    const s = new Set();
+    for (const v of Object.values(DEMO.versions)) if (v.family === fam) {
+      const b = v.data[state.book];
+      if (b) Object.keys(b).forEach((c) => s.add(Number(c)));
+    }
+    return Array.from(s).sort((a, b) => a - b);
+  })();
+  if (!chapList.includes(state.chapter)) state.chapter = chapList[0] || 1;
 }
-sanitizeState();
 
 // Catalog-backed helpers (populated in refreshAll)
 let currentCatalog = { versions: {}, books: {} };
@@ -502,8 +515,7 @@ async function refreshAll() {
   const catalog = await loadCatalog(state.family);
   currentCatalog = catalog || { versions: {}, books: {} };
   // Ensure state still valid after catalog load
-  if (!getBooks().includes(state.book)) state.book = getBooks()[0] || state.book;
-  if (!getChapters(state.book).includes(state.chapter)) state.chapter = getChapters(state.book)[0] || 1;
+  sanitizeState(catalog);
   buildNavTree();
   populateBookSelect();
   populateAddVersion();
