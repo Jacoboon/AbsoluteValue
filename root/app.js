@@ -113,8 +113,13 @@ function cacheKey({ family, version, book, chapter }) {
   return `${family}|${version}|${book}|${chapter}`;
 }
 
+// Resolve relative paths against the script location so it works under
+// both "/" and "/root/" (GitHub Pages folder deploys)
+const BASE_URL = new URL('.', import.meta.url);
+
 async function fetchJSON(url) {
-  const res = await fetch(url, { cache: 'no-store' });
+  const abs = typeof url === 'string' ? new URL(url, BASE_URL) : url;
+  const res = await fetch(abs, { cache: 'no-store' });
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
   return res.json();
 }
