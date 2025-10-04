@@ -4,6 +4,7 @@
 !.gitignore
 !README.md
 !.github/
+!.github/**
 !root/**
 
 # Node/npm leftovers (if any local tests happen)
