@@ -5,6 +5,7 @@
 !README.md
 !.github/
 !.github/**
+!root/
 !root/**
 
 # Node/npm leftovers (if any local tests happen)

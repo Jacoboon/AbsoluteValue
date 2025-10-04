@@ -1,0 +1,202 @@
+:root {
+  --bg: #0f1115;
+  --panel: #151822;
+  --panel-2: #1b2030;
+  --text: #e7ebf3;
+  --muted: #9aa6c7;
+  --accent: #4f80ff;
+  --chip: #26314d;
+  --chip-border: #3a4768;
+  --border: #2a3147;
+  --shadow: 0 6px 20px rgba(0,0,0,0.35);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  color: var(--text);
+  background: var(--bg);
+}
+
+#app {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  grid-template-rows: 100vh;
+}
+
+/* Sidebar */
+#sidebar {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+}
+
+#sidebar.collapsed { width: 56px; overflow: hidden; }
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-header h1 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+#toggle-sidebar {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+#nav-tree {
+  padding: 8px;
+  overflow: auto;
+}
+
+.tree-group {
+  margin-bottom: 8px;
+}
+
+.tree-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  padding: 6px 8px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.tree-title:hover { background: var(--panel-2); }
+
+.tree-content { padding-left: 18px; }
+
+.chapter-list, .verse-list { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.chip-btn {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.chip-btn.active { outline: 2px solid var(--accent); }
+
+/* Main */
+#main {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.bar-left, .bar-right { display: flex; align-items: center; gap: 8px; }
+
+select, .nav-btn {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.nav-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.chips { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--chip);
+  border: 1px solid var(--chip-border);
+  border-radius: 999px;
+}
+
+.chip .name { font-weight: 600; }
+
+.chip .chip-action {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+#chapter-content {
+  padding: 16px;
+  overflow: auto;
+}
+
+.verse-block {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 10px 0;
+}
+
+.verse-ref { font-weight: 700; margin-bottom: 4px; color: var(--muted); }
+
+.line { display: flex; gap: 8px; padding: 2px 0; }
+.line .label { min-width: 70px; color: var(--accent); font-weight: 600; }
+.line .text { color: var(--text); }
+
+#bottombar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.versions-label { color: var(--muted); font-weight: 600; }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0);
+  white-space: nowrap; border: 0;
+}
+
+@media (max-width: 900px) {
+  #app { grid-template-columns: 56px 1fr; }
+  #sidebar { width: 56px; }
+  #sidebar h1 { display: none; }
+}
+

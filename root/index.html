@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Absolute Value — Parallel Reader</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <aside id="sidebar" class="expanded">
+        <div class="sidebar-header">
+          <button id="toggle-sidebar" title="Toggle navigation">☰</button>
+          <h1>Library</h1>
+        </div>
+        <nav id="nav-tree" aria-label="Book Navigation"></nav>
+      </aside>
+
+      <main id="main">
+        <header id="topbar">
+          <div class="bar-left">
+            <label for="book-select" class="sr-only">Book</label>
+            <select id="book-select" title="Select Book"></select>
+
+            <button id="prev-chapter" class="nav-btn" title="Previous chapter">◀ Prev</button>
+            <span id="chapter-label" aria-live="polite"></span>
+            <button id="next-chapter" class="nav-btn" title="Next chapter">Next ▶</button>
+          </div>
+          <div class="bar-right">
+            <span class="versions-label">Versions:</span>
+            <div id="template-versions" class="chips" aria-live="polite"></div>
+            <label for="add-version" class="sr-only">Add Version</label>
+            <select id="add-version" title="Add a version">
+              <option value="">+ Add version…</option>
+            </select>
+          </div>
+        </header>
+
+        <section id="chapter-content" aria-live="polite"></section>
+
+        <footer id="bottombar">
+          <button id="prev-chapter-bottom" class="nav-btn">◀ Prev</button>
+          <button id="next-chapter-bottom" class="nav-btn">Next ▶</button>
+        </footer>
+      </main>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+  </html>
+
