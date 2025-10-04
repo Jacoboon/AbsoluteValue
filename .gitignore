@@ -8,6 +8,8 @@
 !.github/**
 !root/
 !root/**
+!scripts/
+!scripts/**
 
 # Node/npm leftovers (if any local tests happen)
 node_modules/
