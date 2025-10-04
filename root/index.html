@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Absolute Value — Parallel Reader</title>
     <meta name="description" content="Proof-of-concept parallel scripture reader with source templates" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20251004a" />
   </head>
   <body>
     <div id="app">
@@ -41,6 +41,10 @@
 
         <section id="chapter-content" aria-live="polite"></section>
 
+        <div id="error-banner" style="display:none; color:#ffb4b4; padding:8px 14px; border-top:1px solid var(--border); background: #2a1a1a;">
+          <strong>Error:</strong> <span id="error-text"></span>
+        </div>
+
         <footer id="bottombar">
           <button id="prev-chapter-bottom" class="nav-btn">◀ Prev</button>
           <button id="next-chapter-bottom" class="nav-btn">Next ▶</button>
@@ -48,6 +52,25 @@
       </main>
     </div>
 
-    <script type="module" src="./app.js"></script>
+    <script>
+      // Minimal global error trap to surface issues in Pages
+      window.addEventListener('error', function(ev) {
+        var b = document.getElementById('error-banner');
+        var t = document.getElementById('error-text');
+        if (b && t) {
+          b.style.display = 'block';
+          t.textContent = (ev && ev.message) ? ev.message : 'Unknown error';
+        }
+      });
+      window.addEventListener('unhandledrejection', function(ev){
+        var b = document.getElementById('error-banner');
+        var t = document.getElementById('error-text');
+        if (b && t) {
+          b.style.display = 'block';
+          t.textContent = (ev && ev.reason && (ev.reason.message || ev.reason)) || 'Unhandled promise rejection';
+        }
+      });
+    </script>
+    <script type="module" src="./app.js?v=20251004a"></script>
   </body>
   </html>

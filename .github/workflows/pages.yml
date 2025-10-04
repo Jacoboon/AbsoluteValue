@@ -24,12 +24,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Upload site artifact
+      - name: Upload site artifact (repo root)
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./root
+          path: .
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
