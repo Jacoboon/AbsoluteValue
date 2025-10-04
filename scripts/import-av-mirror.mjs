@@ -1,14 +1,21 @@
 #!/usr/bin/env node
 // Import AV mirror.txt (plain lines) using the paired requests map to restore
 // tags/refs, then write into site chapter JSONs.
-// Usage: node scripts/import-av-mirror.mjs <SourceName> <MirrorTxtPath>
+// Usage: node scripts/import-av-mirror.mjs <SourceName> <MirrorTxtPath> [--writeTxt <out.txt>]
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const [,, sourceName, mirrorPath] = process.argv;
+const args = process.argv.slice(2);
+const sourceName = args[0];
+const mirrorPath = args[1];
+let writeTxtPath = null;
+for (let i = 2; i < args.length; i++) {
+  if (args[i] === '--writeTxt') writeTxtPath = args[++i];
+}
+
 if (!sourceName || !mirrorPath) {
-  console.error('Usage: node scripts/import-av-mirror.mjs <SourceName> <MirrorTxtPath>');
+  console.error('Usage: node scripts/import-av-mirror.mjs <SourceName> <MirrorTxtPath> [--writeTxt <out.txt>]');
   process.exit(1);
 }
 
@@ -47,6 +54,7 @@ async function main() {
   }
 
   const chapters = new Map(); // key book|chapter -> verses obj
+  const outRecords = []; // for optional tagged txt
   for (let i = 0; i < n; i++) {
     const ref = parseTag(entries[i].tag);
     if (!ref) continue;
@@ -55,6 +63,7 @@ async function main() {
     let vv = chapters.get(key);
     if (!vv) { vv = {}; chapters.set(key, vv); }
     vv[String(ref.verse)] = text;
+    outRecords.push(`${ref.book} ${ref.chapter}:${ref.verse}\t${text}`);
   }
 
   let written = 0;
@@ -66,8 +75,11 @@ async function main() {
     await fs.writeFile(file, JSON.stringify(verses, null, 2) + '\n', 'utf8');
     written++;
   }
+  if (writeTxtPath) {
+    await fs.writeFile(writeTxtPath, outRecords.join('\n') + '\n', 'utf8');
+    console.log(`Wrote tagged TSV: ${writeTxtPath}`);
+  }
   console.log(`Imported ${written} chapters into ${sourceName} from mirror.`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
-
