@@ -222,7 +222,9 @@ const els = {
   nextTop: document.getElementById('next-chapter'),
   prevBottom: document.getElementById('prev-chapter-bottom'),
   nextBottom: document.getElementById('next-chapter-bottom'),
-  content: document.getElementById('chapter-content')
+  content: document.getElementById('chapter-content'),
+  share: document.getElementById('share-link'),
+  reset: document.getElementById('reset-state')
 };
 
 // Sidebar toggle
@@ -315,6 +317,7 @@ function populateBookSelect() {
     const chs = getChapters(state.book);
     state.chapter = chs.length ? chs[0] : 1;
     saveState(state);
+    syncURL();
     refreshAll();
   });
 }
@@ -335,6 +338,7 @@ function populateAddVersion() {
     if (!v) return;
     state.versions.push(v);
     saveState(state);
+    syncURL();
     els.addVersion.value = '';
     renderTemplateChips();
     renderChapter();
@@ -360,6 +364,7 @@ function renderTemplateChips() {
       const v = state.versions.splice(idx, 1)[0];
       state.versions.splice(idx - 1, 0, v);
       saveState(state);
+      syncURL();
       renderTemplateChips();
       renderChapter();
       populateAddVersion();
@@ -374,6 +379,7 @@ function renderTemplateChips() {
       const v = state.versions.splice(idx, 1)[0];
       state.versions.splice(idx + 1, 0, v);
       saveState(state);
+      syncURL();
       renderTemplateChips();
       renderChapter();
       populateAddVersion();
@@ -385,6 +391,7 @@ function renderTemplateChips() {
     remove.addEventListener('click', () => {
       state.versions = state.versions.filter((x) => x !== name);
       saveState(state);
+      syncURL();
       renderTemplateChips();
       renderChapter();
       populateAddVersion();
@@ -469,6 +476,7 @@ function hookNavButtons() {
     if (typeof next !== 'number') return;
     state.chapter = next;
     saveState(state);
+    syncURL();
     refreshAll();
   }
   els.prevTop.addEventListener('click', () => step(-1));
@@ -496,8 +504,74 @@ async function refreshAll() {
   populateAddVersion();
   renderTemplateChips();
   renderChapter();
+  syncURL();
 }
 
 // Initial render
+// Simple URL sync (deep-linking)
+function buildShareURL() {
+  const usp = new URLSearchParams();
+  usp.set('family', state.family);
+  usp.set('book', state.book);
+  usp.set('chapter', String(state.chapter));
+  if (state.versions?.length) usp.set('v', state.versions.map(encodeURIComponent).join(','));
+  const base = window.location.origin + window.location.pathname;
+  return `${base}?${usp.toString()}`;
+}
+
+function syncURL() {
+  const url = buildShareURL();
+  try {
+    window.history.replaceState(null, '', url);
+  } catch (_) {
+    // no-op
+  }
+}
+
+function initFromURL() {
+  try {
+    const usp = new URLSearchParams(window.location.search);
+    const fam = usp.get('family');
+    const book = usp.get('book');
+    const ch = usp.get('chapter');
+    const v = usp.get('v');
+    if (fam) state.family = fam;
+    if (book) state.book = book;
+    if (ch) state.chapter = Math.max(1, Number(ch) || 1);
+    if (v) state.versions = v.split(',').map(decodeURIComponent).filter(Boolean);
+  } catch (_) {
+    // ignore malformed URLs
+  }
+}
+
+// Share & Reset handlers
+function hookTopbarExtras() {
+  if (els.share) {
+    els.share.addEventListener('click', async () => {
+      const url = buildShareURL();
+      try {
+        await navigator.clipboard.writeText(url);
+        els.share.textContent = 'Copied!';
+        setTimeout(() => (els.share.textContent = 'Share'), 1000);
+      } catch (_) {
+        window.prompt('Copy link:', url);
+      }
+    });
+  }
+  if (els.reset) {
+    els.reset.addEventListener('click', () => {
+      state.family = DEFAULT_STATE.family;
+      state.book = DEFAULT_STATE.book;
+      state.chapter = DEFAULT_STATE.chapter;
+      state.versions = [...DEFAULT_STATE.versions];
+      saveState(state);
+      syncURL();
+      refreshAll();
+    });
+  }
+}
+
 hookNavButtons();
+hookTopbarExtras();
+initFromURL();
 refreshAll();
