@@ -1,0 +1,11 @@
+{
+  "versions": {
+    "KJV": { "code": "kjv" },
+    "KJV-AV.gpt-5": { "code": "kjv_av_gpt5" },
+    "KJV-AV.gpt4o-mini": { "code": "kjv_av_gpt4o_mini" }
+  },
+  "books": {
+    "Genesis": [1, 2]
+  }
+}
+

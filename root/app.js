@@ -5,7 +5,7 @@
 
 const STORAGE_KEY = 'absval.reader.v1';
 
-// Demo data (KJV is public domain; other variants are placeholders)
+// Demo data fallback (works offline via file://). On Pages we fetch JSON.
 const DEMO = {
   versions: {
     'KJV': {
@@ -103,6 +103,71 @@ function saveState(state) {
 
 const state = loadState();
 
+// In-memory caches
+const cache = {
+  catalog: new Map(), // family -> { versions, books }
+  chapters: new Map() // key -> { [verse]: text }
+};
+
+function cacheKey({ family, version, book, chapter }) {
+  return `${family}|${version}|${book}|${chapter}`;
+}
+
+async function fetchJSON(url) {
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+  return res.json();
+}
+
+async function loadCatalog(family) {
+  if (cache.catalog.has(family)) return cache.catalog.get(family);
+  try {
+    const data = await fetchJSON(`data/${encodeURIComponent(family)}/catalog.json`);
+    cache.catalog.set(family, data);
+    return data;
+  } catch (e) {
+    // Fallback to DEMO-derived catalog
+    const versions = {};
+    for (const [name, meta] of Object.entries(DEMO.versions)) {
+      if (meta.family === family) versions[name] = { code: meta.code };
+    }
+    const books = {};
+    const set = new Set();
+    for (const v of Object.values(DEMO.versions)) {
+      if (v.family !== family) continue;
+      Object.keys(v.data).forEach((b) => set.add(b));
+    }
+    for (const b of set) {
+      const chs = new Set();
+      for (const v of Object.values(DEMO.versions)) {
+        if (v.family !== family) continue;
+        const book = v.data[b];
+        if (book) Object.keys(book).forEach((c) => chs.add(Number(c)));
+      }
+      books[b] = Array.from(chs).sort((a, b) => a - b);
+    }
+    const fallback = { versions, books };
+    cache.catalog.set(family, fallback);
+    return fallback;
+  }
+}
+
+async function loadChapter({ family, version, book, chapter }) {
+  const key = cacheKey({ family, version, book, chapter });
+  if (cache.chapters.has(key)) return cache.chapters.get(key);
+  try {
+    const data = await fetchJSON(`data/${encodeURIComponent(family)}/${encodeURIComponent(version)}/${encodeURIComponent(book)}/${encodeURIComponent(chapter)}.json`);
+    cache.chapters.set(key, data);
+    return data;
+  } catch (e) {
+    // Fallback to DEMO
+    const meta = DEMO.versions[version];
+    const d = meta?.data?.[book]?.[chapter] || {};
+    cache.chapters.set(key, d);
+    return d;
+  }
+}
+
 // Ensure state consistency with DEMO dataset and family rules
 function sanitizeState() {
   // Drop unknown versions and enforce family constraint
@@ -122,36 +187,20 @@ function sanitizeState() {
 }
 sanitizeState();
 
-// Derive available books/chapters from demo data
+// Catalog-backed helpers (populated in refreshAll)
+let currentCatalog = { versions: {}, books: {} };
+
 function getBooks(family = state.family) {
-  const set = new Set();
-  for (const v of Object.values(DEMO.versions)) {
-    if (v.family !== family) continue;
-    for (const book of Object.keys(v.data)) set.add(book);
-  }
-  return Array.from(set);
+  return Object.keys(currentCatalog.books || {});
 }
 
 function getChapters(book, family = state.family) {
-  const nums = new Set();
-  for (const v of Object.values(DEMO.versions)) {
-    if (v.family !== family) continue;
-    const b = v.data[book];
-    if (!b) continue;
-    for (const ch of Object.keys(b)) nums.add(Number(ch));
-  }
-  return Array.from(nums).sort((a,b) => a-b);
+  return (currentCatalog.books?.[book] || []).slice();
 }
 
 function getMaxVerse(book, chapter) {
-  let max = 0;
-  for (const v of Object.values(DEMO.versions)) {
-    if (v.family !== state.family) continue;
-    const vv = v.data?.[book]?.[chapter];
-    if (!vv) continue;
-    for (const k of Object.keys(vv)) max = Math.max(max, Number(k));
-  }
-  return max;
+  // Unknown until chapters are fetched; caller now computes from fetched data.
+  return 0;
 }
 
 function getText(versionName, book, chapter, verse) {
@@ -273,8 +322,8 @@ function populateBookSelect() {
 function populateAddVersion() {
   const existing = new Set(state.versions);
   els.addVersion.innerHTML = '<option value="">+ Add source…</option>';
-  for (const [name, meta] of Object.entries(DEMO.versions)) {
-    if (meta.family !== state.family) continue; // enforce same family
+  const all = Object.keys(currentCatalog.versions || {});
+  for (const name of all) {
     if (existing.has(name)) continue;
     const opt = document.createElement('option');
     opt.value = name;
@@ -353,34 +402,54 @@ function updateChapterLabel() {
   els.chapterLabel.textContent = `${state.book} ${state.chapter}`;
 }
 
-function renderChapter() {
+async function renderChapter() {
   updateChapterLabel();
-  const maxVerse = getMaxVerse(state.book, state.chapter);
-  const frag = document.createDocumentFragment();
-  for (let v = 1; v <= maxVerse; v++) {
-    const block = document.createElement('div');
-    block.className = 'verse-block';
-    const ref = document.createElement('div');
-    ref.className = 'verse-ref';
-    ref.textContent = `${state.book} ${state.chapter}:${v}`;
-    block.appendChild(ref);
-    for (const ver of state.versions) {
-      const line = document.createElement('div');
-      line.className = 'line';
-      const label = document.createElement('div');
-      label.className = 'label';
-      label.textContent = ver;
-      const text = document.createElement('div');
-      text.className = 'text';
-      text.textContent = getText(ver, state.book, state.chapter, v);
-      line.appendChild(label);
-      line.appendChild(text);
-      block.appendChild(line);
-    }
-    frag.appendChild(block);
+  els.content.innerHTML = '<div class="verse-block">Loading…</div>';
+
+  // Fetch all selected versions for this chapter
+  const tasks = state.versions.map((ver) => loadChapter({
+    family: state.family,
+    version: ver,
+    book: state.book,
+    chapter: state.chapter
+  }).then((data) => ({ ver, data })).catch(() => ({ ver, data: {} })));
+  const results = await Promise.all(tasks);
+
+  // Determine union of verse numbers
+  const verseSet = new Set();
+  for (const { data } of results) {
+    Object.keys(data || {}).forEach((k) => verseSet.add(Number(k)));
   }
-  els.content.innerHTML = '';
-  els.content.appendChild(frag);
+  const verses = Array.from(verseSet).sort((a, b) => a - b);
+  if (verses.length === 0) {
+    els.content.innerHTML = '<div class="verse-block">No data for this chapter.</div>';
+  } else {
+    const frag = document.createDocumentFragment();
+    for (const v of verses) {
+      const block = document.createElement('div');
+      block.className = 'verse-block';
+      const ref = document.createElement('div');
+      ref.className = 'verse-ref';
+      ref.textContent = `${state.book} ${state.chapter}:${v}`;
+      block.appendChild(ref);
+      for (const { ver, data } of results) {
+        const line = document.createElement('div');
+        line.className = 'line';
+        const label = document.createElement('div');
+        label.className = 'label';
+        label.textContent = ver;
+        const text = document.createElement('div');
+        text.className = 'text';
+        text.textContent = data?.[v] ?? '[Not available]';
+        line.appendChild(label);
+        line.appendChild(text);
+        block.appendChild(line);
+      }
+      frag.appendChild(block);
+    }
+    els.content.innerHTML = '';
+    els.content.appendChild(frag);
+  }
 
   // Update prev/next enabled
   const chapters = getChapters(state.book);
@@ -415,8 +484,13 @@ function hookNavButtons() {
   });
 }
 
-function refreshAll() {
-  // Rebuild everything dependent on state
+async function refreshAll() {
+  // Load catalog, then rebuild everything dependent on it
+  const catalog = await loadCatalog(state.family);
+  currentCatalog = catalog || { versions: {}, books: {} };
+  // Ensure state still valid after catalog load
+  if (!getBooks().includes(state.book)) state.book = getBooks()[0] || state.book;
+  if (!getChapters(state.book).includes(state.chapter)) state.chapter = getChapters(state.book)[0] || 1;
   buildNavTree();
   populateBookSelect();
   populateAddVersion();
@@ -425,9 +499,5 @@ function refreshAll() {
 }
 
 // Initial render
-buildNavTree();
-populateBookSelect();
-populateAddVersion();
-renderTemplateChips();
 hookNavButtons();
-renderChapter();
+refreshAll();
