@@ -1,0 +1,17 @@
+# Publish only the static site and workflows
+# Ignore everything by default, then allowlist specific paths
+*
+!.gitignore
+!README.md
+!.github/
+!root/**
+
+# Node/npm leftovers (if any local tests happen)
+node_modules/
+npm-debug.log*
+pnpm-lock.yaml
+package-lock.json
+
+# OS junk
+.DS_Store
+Thumbs.db
